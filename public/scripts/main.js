@@ -46,12 +46,14 @@ phina.define('TitleScene', {
         var label = Label('Touch the color', {
           color: 'white',
           stroke: false,
+          fontSize: 64,
         }).addChildTo(self);
         label.position.set(SCREEN_WIDTH/2, SCREEN_HEIGHT/2);
         label.alpha = 0;
         // 
         Tweener(label).addChildTo(label)
           .to({alpha:1}, 1000, 'swing')
+          .to({y:250}, 1000, 'swing')
           .call(function() {
             this.remove();
           })
@@ -68,7 +70,6 @@ phina.define('TitleScene', {
       var wave = Wave().addChildTo(this);
       wave.x = p.x;
       wave.y = p.y;
-
     };
   },
 });
@@ -173,12 +174,12 @@ phina.define('MainScene', {
       if (this.currentIndex >= MAX_NUM) {
         var tweener = Tweener(this.currentPiece).addChildTo(this);
         tweener
-          .to({ x: SCREEN_WIDTH/2, y: SCREEN_HEIGHT/2, rotation: 1080}, 500)
+          .to({ x: SCREEN_WIDTH/2, y: SCREEN_HEIGHT/2, rotation: 1080}, 500, 'swing')
           .wait(500)
           .to({
             scaleX: 10,
             scaleY: 10,
-          }, 500)
+          }, 500, 'swing')
           .call(function() {
             alert('clear');
           });
