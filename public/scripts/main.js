@@ -15,10 +15,63 @@ var init = function() {
   var app = CanvasApp({
     query:'#world',
   });
-  var scene = MainScene();
+  var scene = TitleScene();
+  // var scene = MainScene();
   app.replaceScene(scene);
   app.run();
 };
+
+phina.define('TitleScene', {
+  superClass: 'phina.display.CanvasScene',
+  init: function() {
+    this.superInit({
+      width: SCREEN_WIDTH,
+      height: SCREEN_HEIGHT,
+    });
+
+    var self = this;
+
+    // 
+    this.piece = Piece(1, 'hsl(0, 80%, 60%)').addChildTo(this);
+    this.piece.position.set(SCREEN_WIDTH/2, SCREEN_HEIGHT/2);
+    var tweener = Tweener(this.piece).addChildTo(this);
+    tweener
+      .from({ x: -100, rotation: -720}, 1000, 'swing')
+      .wait(500)
+      .to({
+        scaleX: 10,
+        scaleY: 10,
+      }, 500, 'swing')
+      .call(function() {
+        var label = Label('Touch the color', {
+          color: 'white',
+          stroke: false,
+        }).addChildTo(self);
+        label.position.set(SCREEN_WIDTH/2, SCREEN_HEIGHT/2);
+        label.alpha = 0;
+        // 
+        Tweener(label).addChildTo(label)
+          .to({alpha:1}, 1000, 'swing')
+          .call(function() {
+            this.remove();
+          })
+
+        this.remove();
+
+        self.on('pointend', function() {
+          this.app.replaceScene(MainScene());
+        });
+      });
+
+    this.onpointstart = function(e) {
+      var p = e.pointer;
+      var wave = Wave().addChildTo(this);
+      wave.x = p.x;
+      wave.y = p.y;
+
+    };
+  },
+});
 
 phina.define('MainScene', {
   superClass: 'phina.display.CanvasScene',
@@ -71,6 +124,32 @@ phina.define('MainScene', {
     this.currentPiece = Piece(1).addChildTo(this);
     this.currentPiece.position.set(SCREEN_WIDTH/2, 120);
     this.setIndex(1);
+    // 
+    var tweener = Tweener(this.currentPiece).addChildTo(this);
+    this.currentPiece.position.set(SCREEN_WIDTH/2, SCREEN_HEIGHT/2);
+    this.currentPiece.scale.set(10, 10);
+
+    tweener
+      .wait(500)
+      .to({
+        scaleX: 1,
+        scaleY: 1,
+        rotation: 360,
+      }, 1000, 'swing')
+      .to({
+        y: 120,
+      }, 1000, 'easeInOutElastic')
+      .set({rotation: 0})
+      .call(function() {
+        this.remove();
+      })
+
+    this.onpointstart = function(e) {
+      var p = e.pointer;
+      var wave = Wave().addChildTo(this);
+      wave.x = p.x;
+      wave.y = p.y;
+    };
   },
 
   setIndex: function(index) {
