@@ -28,14 +28,30 @@ phina.define('MainScene', {
       height: SCREEN_HEIGHT,
     });
 
-    // 
+    this.bg = Shape({
+      width: SCREEN_WIDTH,
+      height: SCREEN_HEIGHT,
+      backgroundColor: '#fec',
+    }).addChildTo(this).origin.set(0, 0);
+
+    // 定数
     var gridX = Grid(SCREEN_WIDTH, 6);
     var gridY = Grid(SCREEN_WIDTH, 6);
     var self = this;
     var numbers = Array.range(1, MAX_NUM+1).shuffle();
-    // 
+    // ボードを作成
+    this.board = RectangleShape({
+      width: SCREEN_WIDTH - 64,
+      height: SCREEN_WIDTH - 64,
+      stroke: false,
+      color: 'white',
+      cornerRadius: 8,
+    }).addChildTo(this);
+    this.board.x = SCREEN_WIDTH/2;
+    this.board.y = SCREEN_WIDTH/2 + 190;
+    // グループを生成
     this.group = CanvasElement().addChildTo(this);
-    // 
+    // ピースを生成
     numbers.each(function(index, i) {
       // グリッド上でのインデックス
       var xIndex = i%MAX_PER_LINE;
@@ -44,7 +60,7 @@ phina.define('MainScene', {
       var p = Piece(index, color).addChildTo(self.group);
 
       p.x = gridX.span(xIndex+1);
-      p.y = gridY.span(yIndex+1)+170;
+      p.y = gridY.span(yIndex+1)+190;
 
       p.onpointstart = function() {
         self.check(this);
@@ -60,7 +76,6 @@ phina.define('MainScene', {
   setIndex: function(index) {
     this.currentIndex = index;
     var target = this.group.children.find(function(p) {
-      console.log(p.index, index);
       return p.index === index;
     });
     this.currentPiece.style.color = target.style.color;
@@ -77,7 +92,17 @@ phina.define('MainScene', {
       piece.style.color = 'gray';
 
       if (this.currentIndex >= MAX_NUM) {
-        alert('clear');
+        var tweener = Tweener(this.currentPiece).addChildTo(this);
+        tweener
+          .to({ x: SCREEN_WIDTH/2, y: SCREEN_HEIGHT/2, rotation: 1080}, 500)
+          .wait(500)
+          .to({
+            scaleX: 10,
+            scaleY: 10,
+          }, 500)
+          .call(function() {
+            alert('clear');
+          });
       }
       else {
         this.setIndex(this.currentIndex+1);
