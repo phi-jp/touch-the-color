@@ -32,7 +32,7 @@ phina.define('MainPiece', {
         scaleX: 1,
         scaleY: 1,
         rotation: 360,
-      }, 1000, 'swing')
+      }, 1000, 'easeInOutQuad')
       .to({
         y: 120,
       }, 1000, 'easeInOutElastic')
@@ -46,12 +46,12 @@ phina.define('MainPiece', {
     var tweener = Tweener(this).addChildTo(this);
     this.rotation = 0;
     tweener
-      .to({ x: SCREEN_WIDTH/2, y: SCREEN_HEIGHT/2, rotation: 1080}, 500, 'swing')
+      .to({ x: SCREEN_WIDTH/2, y: SCREEN_HEIGHT/2, rotation: 1080}, 500, 'easeInOutQuad')
       .wait(500)
       .to({
         scaleX: 10,
         scaleY: 10,
-      }, 500, 'swing')
+      }, 500, 'easeInOutQuad')
       .call(function() {
         this.remove();
         this.target.flare('biged');
@@ -66,12 +66,12 @@ phina.define('MainPiece', {
 
     var tweener = Tweener(this).addChildTo(this);
     tweener
-      .to({ x: 320, rotation: 0}, 1000, 'swing')
+      .to({ x: 320, rotation: 0}, 1000, 'easeInOutQuad')
       .wait(500)
       .to({
         scaleX: 10,
         scaleY: 10,
-      }, 500, 'swing')
+      }, 500, 'easeInOutQuad')
       .call(function() {
         this.remove();
         this.target.flare('appeared');
@@ -89,8 +89,8 @@ phina.define('MainPiece', {
       .to({
         scaleX: 1,
         scaleY: 1,
-      }, 1000, 'swing')
-      .to({ x: 640+100, rotation: 0}, 1000, 'swing')
+      }, 1000, 'easeInOutQuad')
+      .to({ x: 640+100, rotation: 0}, 1000, 'easeInOutQuad')
       .call(function() {
         this.remove();
         this.target.flare('disappeared');
