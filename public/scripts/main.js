@@ -19,7 +19,7 @@ var init = function() {
   app.enableStats();
 
   var scene = ManagerScene({
-    startLabel: 'title',
+    startLabel: 'result',
     scenes: [
       {
         className: 'TitleScene',
@@ -59,38 +59,29 @@ phina.define('TitleScene', {
     var self = this;
 
     // 
-    this.piece = Piece(1, 'hsl(0, 80%, 60%)').addChildTo(this);
-    this.piece.position.set(SCREEN_WIDTH/2, SCREEN_HEIGHT/2);
-    var tweener = Tweener(this.piece).addChildTo(this);
-    tweener
-      .from({ x: -100, rotation: -720}, 1000, 'swing')
-      .wait(500)
-      .to({
-        scaleX: 10,
-        scaleY: 10,
-      }, 500, 'swing')
-      .call(function() {
-        var label = Label('Touch the color', {
-          color: 'white',
-          stroke: false,
-          fontSize: 64,
-        }).addChildTo(self);
-        label.position.set(SCREEN_WIDTH/2, SCREEN_HEIGHT/2);
-        label.alpha = 0;
-        // 
-        Tweener(label).addChildTo(label)
-          .to({alpha:1}, 1000, 'swing')
-          .to({y:250}, 1000, 'swing')
-          .call(function() {
-            this.remove();
-          })
+    this.piece = MainPiece('hsl(0, 80%, 60%)').addChildTo(this);
 
-        this.remove();
+    this.piece.appear();
+    this.piece.onappeared = function() {
+      var label = Label('Touch the color', {
+        color: 'white',
+        stroke: false,
+        fontSize: 64,
+      }).addChildTo(self);
+      label.position.set(SCREEN_WIDTH/2, SCREEN_HEIGHT/2);
+      label.alpha = 0;
+      // 
+      Tweener(label).addChildTo(label)
+        .to({alpha:1}, 1000, 'swing')
+        .to({y:250}, 1000, 'swing')
+        .call(function() {
+          this.remove();
+        })
 
-        self.on('pointend', function() {
-          this.exit();
-        });
+      self.on('pointend', function() {
+        this.exit();
       });
+    };
 
     this.onpointstart = function(e) {
       var p = e.pointer;
@@ -113,13 +104,21 @@ phina.define('ResultScene', {
       height: SCREEN_HEIGHT,
     });
 
-    Label('result: ' + params.score).addChildTo(this)
-      .position.set(320, 480)
+    this.backgroundColor = BACKGROUND_COLOR;
+
+    // 
+    this.piece = MainPiece('hsl(0, 80%, 60%)').addChildTo(this);
+    this.piece.fill();
+
+    this.label = Label('result: ' + params.score).addChildTo(this);
+    this.label.position.set(320, 480)
 
     this.onpointstart = function() {
-      this.exit();
+      this.label.visible = false;
+      this.piece.disappear().on('disappeared', function() {
+        this.exit();
+      }.bind(this));
     };
-
   },
 
 });
@@ -171,28 +170,11 @@ phina.define('MainScene', {
     });
 
     // 
-    this.currentPiece = Piece(1).addChildTo(this);
-    this.currentPiece.position.set(SCREEN_WIDTH/2, 120);
+    this.currentPiece = MainPiece().addChildTo(this);
     this.setIndex(1);
     // 
     var tweener = Tweener(this.currentPiece).addChildTo(this);
-    this.currentPiece.position.set(SCREEN_WIDTH/2, SCREEN_HEIGHT/2);
-    this.currentPiece.scale.set(10, 10);
-
-    tweener
-      .wait(500)
-      .to({
-        scaleX: 1,
-        scaleY: 1,
-        rotation: 360,
-      }, 1000, 'swing')
-      .to({
-        y: 120,
-      }, 1000, 'easeInOutElastic')
-      .set({rotation: 0})
-      .call(function() {
-        this.remove();
-      })
+    this.currentPiece.small();
 
     this.onpointstart = function(e) {
       var p = e.pointer;
@@ -215,27 +197,18 @@ phina.define('MainScene', {
       piece.alpha = 0.5;
       piece.style.color = 'gray';
 
-      if (this.currentIndex >= MAX_NUM) {
-      // if (true) {
-        var tweener = Tweener(this.currentPiece).addChildTo(this);
-        tweener
-          .to({ x: SCREEN_WIDTH/2, y: SCREEN_HEIGHT/2, rotation: 1080}, 500, 'swing')
-          .wait(500)
-          .to({
-            scaleX: 10,
-            scaleY: 10,
-          }, 500, 'swing')
-          .call(function() {
-            this.exit('result', {
-              score: 100,
-            })
-          }, this);
+      // if (this.currentIndex >= MAX_NUM) {
+      if (true) {
+        this.currentPiece.big().on('biged', function() {
+          this.exit('result', {
+            score: 100,
+          })
+        }.bind(this));
       }
       else {
         this.setIndex(this.currentIndex+1);
       }
     }
-
   },
 });
 
