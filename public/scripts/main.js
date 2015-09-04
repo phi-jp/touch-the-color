@@ -19,7 +19,7 @@ var init = function() {
   app.enableStats();
 
   var scene = ManagerScene({
-    startLabel: 'title',
+    startLabel: location.search.substr(1).toObject().scene || 'title',
     // startLabel: 'result',
     scenes: [
       {
