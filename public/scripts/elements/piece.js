@@ -25,7 +25,7 @@ phina.define('MainPiece', {
     // 
     this.fill();
     // 
-    var tweener = Tweener(this).addChildTo(this);
+    var tweener = Tweener().attachTo(this);
     tweener
       .wait(500)
       .to({
@@ -43,7 +43,7 @@ phina.define('MainPiece', {
   },
 
   big: function() {
-    var tweener = Tweener(this).addChildTo(this);
+    var tweener = Tweener().attachTo(this);
     this.rotation = 0;
     tweener
       .to({ x: SCREEN_WIDTH/2, y: SCREEN_HEIGHT/2, rotation: 1080}, 500, 'easeInOutQuad')
@@ -53,8 +53,8 @@ phina.define('MainPiece', {
         scaleY: 10,
       }, 500, 'easeInOutQuad')
       .call(function() {
-        this.remove();
         this.target.flare('biged');
+        this.remove();
       });
 
     return this;
@@ -64,7 +64,7 @@ phina.define('MainPiece', {
     this.position.set(-100, SCREEN_HEIGHT/2);
     this.rotation = -720;
 
-    var tweener = Tweener(this).addChildTo(this);
+    var tweener = Tweener().attachTo(this);
     tweener
       .to({ x: 320, rotation: 0}, 1000, 'easeInOutQuad')
       .wait(500)
@@ -73,8 +73,8 @@ phina.define('MainPiece', {
         scaleY: 10,
       }, 500, 'easeInOutQuad')
       .call(function() {
-        this.remove();
         this.target.flare('appeared');
+        this.remove();
       });
   },
 
@@ -83,7 +83,7 @@ phina.define('MainPiece', {
     this.fill();
     this.rotation = -720;
     // 
-    var tweener = Tweener(this).addChildTo(this);
+    var tweener = Tweener().attachTo(this);
     tweener
       .wait(500)
       .to({
@@ -92,8 +92,8 @@ phina.define('MainPiece', {
       }, 1000, 'easeInOutQuad')
       .to({ x: 640+100, rotation: 0}, 1000, 'easeInOutQuad')
       .call(function() {
-        this.remove();
         this.target.flare('disappeared');
+        this.remove();
       });
     return this;
   },

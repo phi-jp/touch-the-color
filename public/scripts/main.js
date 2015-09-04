@@ -76,7 +76,7 @@ phina.define('TitleScene', {
       label.position.set(SCREEN_WIDTH/2, SCREEN_HEIGHT/2);
       label.alpha = 0;
       // 
-      Tweener(label).addChildTo(label)
+      Tweener().attachTo(label)
         .to({alpha:1}, 1000, 'swing')
         .to({y:250}, 1000, 'swing')
         .call(function() {
@@ -178,7 +178,7 @@ phina.define('MainScene', {
     this.currentPiece = MainPiece().addChildTo(this);
     this.setIndex(1);
     // 
-    var tweener = Tweener(this.currentPiece).addChildTo(this);
+    var tweener = Tweener().attachTo(this.currentPiece);
     this.currentPiece.small();
 
     this.onpointstart = function(e) {
