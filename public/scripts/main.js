@@ -19,7 +19,7 @@ var init = function() {
   app.enableStats();
 
   var scene = ManagerScene({
-    startLabel: 'result',
+    startLabel: 'title',
     scenes: [
       {
         className: 'TitleScene',
