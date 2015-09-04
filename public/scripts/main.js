@@ -207,7 +207,7 @@ phina.define('MainScene', {
         this.currentPiece.big().on('biged', function() {
           this.exit('result', {
             score: 100,
-            color: this.currentPiece.color,
+            color: this.currentPiece.style.color,
           })
         }.bind(this));
       }
