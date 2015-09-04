@@ -9,18 +9,43 @@ var SCREEN_HEIGHT = 960;
 var MAX_PER_LINE    = 5;                            // ピースの横に並ぶ最大数
 var MAX_NUM         = MAX_PER_LINE*MAX_PER_LINE;    // ピース全体の数
 
-var stats = null;
+var BACKGROUND_COLOR = '#fec';
 
 var init = function() {
   var app = CanvasApp({
     query:'#world',
   });
-  var scene = TitleScene();
-  // var scene = MainScene();
+
+  app.enableStats();
+
+  var scene = ManagerScene({
+    startLabel: 'title',
+    scenes: [
+      {
+        className: 'TitleScene',
+        label: 'title',
+        nextLabel: 'main',
+      },
+      {
+        className: 'MainScene',
+        label: 'main',
+        nextLabel: 'result',
+      },
+      {
+        className: 'ResultScene',
+        label: 'result',
+        nextLabel: 'title',
+      },
+    ]
+  });
   app.replaceScene(scene);
+
   app.run();
 };
 
+/**
+ * TitleScene
+ */
 phina.define('TitleScene', {
   superClass: 'phina.display.CanvasScene',
   init: function() {
@@ -28,6 +53,8 @@ phina.define('TitleScene', {
       width: SCREEN_WIDTH,
       height: SCREEN_HEIGHT,
     });
+
+    this.backgroundColor = BACKGROUND_COLOR;
 
     var self = this;
 
@@ -61,7 +88,7 @@ phina.define('TitleScene', {
         this.remove();
 
         self.on('pointend', function() {
-          this.app.replaceScene(MainScene());
+          this.exit();
         });
       });
 
@@ -74,6 +101,32 @@ phina.define('TitleScene', {
   },
 });
 
+/**
+ * ResultScene
+ */
+phina.define('ResultScene', {
+  superClass: 'CanvasScene',
+
+  init: function(params) {
+    this.superInit({
+      width: SCREEN_WIDTH,
+      height: SCREEN_HEIGHT,
+    });
+
+    Label('result: ' + params.score).addChildTo(this)
+      .position.set(320, 480)
+
+    this.onpointstart = function() {
+      this.exit();
+    };
+
+  },
+
+});
+
+/**
+ * MainScene
+ */
 phina.define('MainScene', {
   superClass: 'phina.display.CanvasScene',
   init: function() {
@@ -82,11 +135,7 @@ phina.define('MainScene', {
       height: SCREEN_HEIGHT,
     });
 
-    this.bg = Shape({
-      width: SCREEN_WIDTH,
-      height: SCREEN_HEIGHT,
-      backgroundColor: '#fec',
-    }).addChildTo(this).origin.set(0, 0);
+    this.backgroundColor = BACKGROUND_COLOR;
 
     // 定数
     var gridX = Grid(SCREEN_WIDTH, 6);
@@ -161,17 +210,13 @@ phina.define('MainScene', {
     this.currentPiece.style.color = target.style.color;
   },
 
-  update: function() {
-    stats.end();
-    stats.begin();
-  },
-
   check: function(piece) {
     if (this.currentIndex === piece.index) {
       piece.alpha = 0.5;
       piece.style.color = 'gray';
 
       if (this.currentIndex >= MAX_NUM) {
+      // if (true) {
         var tweener = Tweener(this.currentPiece).addChildTo(this);
         tweener
           .to({ x: SCREEN_WIDTH/2, y: SCREEN_HEIGHT/2, rotation: 1080}, 500, 'swing')
@@ -181,8 +226,10 @@ phina.define('MainScene', {
             scaleY: 10,
           }, 500, 'swing')
           .call(function() {
-            alert('clear');
-          });
+            this.exit('result', {
+              score: 100,
+            })
+          }, this);
       }
       else {
         this.setIndex(this.currentIndex+1);
@@ -216,8 +263,5 @@ phina.define('Piece', {
  * main
  */
 window.onload = function() {
-  // Stats
-  stats = new Stats();
-  document.body.appendChild(stats.domElement);
   init();
 };
