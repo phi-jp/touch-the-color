@@ -20,6 +20,7 @@ var init = function() {
 
   var scene = ManagerScene({
     startLabel: 'title',
+    // startLabel: 'result',
     scenes: [
       {
         className: 'TitleScene',
@@ -34,6 +35,10 @@ var init = function() {
       {
         className: 'ResultScene',
         label: 'result',
+        arguments: {
+          color: 'blue',
+          score: 1234,
+        },
         nextLabel: 'title',
       },
     ]
@@ -107,7 +112,7 @@ phina.define('ResultScene', {
     this.backgroundColor = BACKGROUND_COLOR;
 
     // 
-    this.piece = MainPiece('hsl(0, 80%, 60%)').addChildTo(this);
+    this.piece = MainPiece(params.color || 'hsl(0, 80%, 60%)').addChildTo(this);
     this.piece.fill();
 
     this.label = Label('result: ' + params.score).addChildTo(this);
@@ -202,6 +207,7 @@ phina.define('MainScene', {
         this.currentPiece.big().on('biged', function() {
           this.exit('result', {
             score: 100,
+            color: this.currentPiece.color,
           })
         }.bind(this));
       }
