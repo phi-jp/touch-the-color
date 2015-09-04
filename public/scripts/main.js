@@ -197,8 +197,8 @@ phina.define('MainScene', {
       piece.alpha = 0.5;
       piece.style.color = 'gray';
 
-      // if (this.currentIndex >= MAX_NUM) {
-      if (true) {
+      if (this.currentIndex >= MAX_NUM) {
+      // if (true) {
         this.currentPiece.big().on('biged', function() {
           this.exit('result', {
             score: 100,
