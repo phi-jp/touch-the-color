@@ -1141,8 +1141,16 @@ phina.namespace(function() {
 
   phina.method('globalize', function() {
     phina.forIn(function(key, value) {
+      var ns = key;
 
       value.forIn(function(key, value) {
+        // if (phina.global[key]) {
+        //   console.log(ns, key);
+        //   phina.global['_' + key] = value;
+        // }
+        // else {
+        //   phina.global[key] = value;
+        // }
         phina.global[key] = value;
       });
     });
@@ -2305,12 +2313,16 @@ phina.namespace(function() {
       assets: {
         image: {},
         sound: {},
+        spritesheet: {},
       },
       
       get: function(type, key) {
-        return this.assets[type][key];
+        return this.assets[type] && this.assets[type][key];
       },
       set: function(type, key, asset) {
+        if (!this.assets[type]) {
+          this.assets[type] = {};
+        }
         this.assets[type][key] = asset;
       },
       contains: function(type, key) {
@@ -2322,6 +2334,182 @@ phina.namespace(function() {
 
 });
 
+
+
+phina.namespace(function() {
+
+  /**
+   * @class phina.asset.AssetManager
+   * 
+   */
+  phina.define('phina.asset.AssetLoader', {
+    superClass: "phina.util.EventDispatcher",
+
+    /**
+     * @constructor
+     */
+    init: function(params) {
+      this.superInit();
+
+      params = (params || {}).$safe({
+        cache: true,
+      });
+
+      this.assets = {};
+      this.cache = params.cache;
+    },
+
+    load: function(params) {
+      var self = this;
+      var flows = [];
+
+      params.forIn(function(type, assets) {
+        assets.forIn(function(key, value) {
+          var func = phina.asset.AssetLoader.assetLoadFunctions[type];
+          var flow = func(value);
+          flow.then(function(asset) {
+            if (self.cache) {
+              phina.asset.AssetManager.set(type, key, asset);
+            }
+          });
+          flows.push(flow);
+        });
+      });
+
+      return phina.util.Flow.all(flows).then(function(args) {
+      });
+    },
+
+    _static: {
+      assetLoadFunctions: {
+        image: function(path) {
+          var texture = phina.asset.Texture();
+          var flow = texture.load(path);
+          return flow;
+        },
+        sound: function(path) {
+          var sound = phina.asset.Sound();
+          var flow = audio.load(path);
+          return flow;
+        },
+        spritesheet: function(path) {
+          var ss = phina.asset.SpriteSheet();
+          var flow = ss.load(path);
+          return flow;
+        },
+        script: function(path) {
+          var script = phina.asset.Script();
+          return script.load(path);
+        },
+      }
+    }
+
+  });
+
+});
+
+
+
+phina.namespace(function() {
+
+  /**
+   * @class phina.asset.File
+   * 
+   */
+  phina.define('phina.asset.File', {
+    superClass: "phina.asset.Asset",
+
+    /**
+     * @constructor
+     */
+    init: function() {
+      this.superInit();
+    },
+
+    _load: function(resolve) {
+
+      var params = {};
+
+      if (typeof this.src === 'string') {
+        params.$extend({
+          path: this.src,
+        });
+      }
+      else if (typeof this.src === 'object') {
+        params.$extend(this.src);
+      }
+
+      params.$safe({
+        path: '',
+        dataType: 'text',
+      });
+
+      // load
+      var self = this;
+      var xml = new XMLHttpRequest();
+      xml.open('GET', params.path);
+      xml.onreadystatechange = function() {
+        if (xml.readyState === 4) {
+          if ([200, 201, 0].indexOf(xml.status) !== -1) {
+            var data = xml.responseText;
+
+            if (params.dataType === 'json') {
+              data = JSON.parse(data);
+            }
+
+            self.data = data;
+            resolve(self);
+          }
+        }
+      };
+
+      xml.send(null);
+      // this.domElement = new Image();
+      // this.domElement.src = this.src;
+
+      // var self = this;
+      // this.domElement.onload = function() {
+      //   self.loaded = true;
+      //   resolve(self);
+      // };
+    },
+
+  });
+
+});
+
+
+
+phina.namespace(function() {
+
+  /**
+   * @class phina.asset.Script
+   * 
+   */
+  phina.define('phina.asset.Script', {
+    superClass: "phina.asset.Asset",
+
+    /**
+     * @constructor
+     */
+    init: function() {
+      this.superInit();
+    },
+
+    _load: function(resolve) {
+      this.domElement = document.createElement('script');
+      this.domElement.src = this.src;
+
+      this.domElement.onload = function() {
+        resolve(self);
+      }.bind(this);
+
+      document.body.appendChild(this.domElement);
+    },
+
+  });
+
+});
 
 
 
@@ -2350,6 +2538,268 @@ phina.namespace(function() {
         self.loaded = true;
         resolve(self);
       };
+    },
+
+  });
+
+});
+
+
+
+
+phina.namespace(function() {
+
+  /**
+   * @class phina.asset.Sound
+   * 
+   */
+  phina.define('phina.asset.Sound', {
+    superClass: "phina.asset.Asset",
+
+    /**
+     * @constructor
+     */
+    init: function() {
+      this.superInit();
+      this.context = phina.asset.Sound.audioContext;
+    },
+
+    /**
+     * 複製
+     */
+    clone: function() {
+      var sound = phina.asset.Sound();
+      sound.loadFromBuffer(this.source.buffer);
+      sound.volume = this.volume;
+      return sound;
+    },
+
+    play: function() {
+      // play
+      this.source.start(0);
+
+      // cache play end
+      if (this.source.buffer) {
+        var time = (this.source.buffer.duration/this.source.playbackRate.value)*1000;
+        window.setTimeout(function(self) {
+          self.flare('ended');
+        }, time, this);
+      }
+
+      return this;
+    },
+
+    // 試してみるなう
+    _oscillator: function(type) {
+      var context = this.context;
+
+      var oscillator = context.createOscillator();
+
+      // Sine wave is type = “sine”
+      // Square wave is type = “square”
+      // Sawtooth wave is type = “saw”
+      // Triangle wave is type = “triangle”
+      // Custom wave is type = “custom” 
+      oscillator.type = type || 'sine';
+
+      this.source = oscillator;
+      // connect
+      this.source.connect(context.destination);
+
+      this
+    },
+
+    loadFromBuffer: function(buffer) {
+      var context = this.context;
+
+      // set default buffer
+      if (!buffer) {
+        buffer = context.createBuffer( 1, 44100, 44100 );
+        var channel = buffer.getChannelData(0);
+
+        for( var i=0; i < channel.length; i++ )
+        {
+          channel[i] = Math.sin( i / 100 * Math.PI);
+        }
+      }
+
+      // source
+      var source = context.createBufferSource();
+      source.buffer = buffer;
+      this.source = source;
+
+      // connect
+      this.source.connect(context.destination);
+    },
+
+    _load: function(r) {
+      var self = this;
+
+      var xml = new XMLHttpRequest();
+      xml.open('GET', this.src);
+      xml.onreadystatechange = function() {
+        if (xml.readyState === 4) {
+          if ([200, 201, 0].indexOf(xml.status) !== -1) {
+            // 音楽バイナリーデータ
+            var data = xml.response;
+
+            // webaudio 用に変換
+            self.context.decodeAudioData(data, function(buffer) {
+              self.loadFromBuffer(buffer);
+              r(self);
+            }, function() {
+              console.warn("音声ファイルのデコードに失敗しました。(" + src + ")");
+              self.loaded = true;
+              r(self);
+            });
+          }
+        }
+      };
+
+      xml.responseType = 'arraybuffer';
+      xml.send(null);
+    },
+
+    _static: {
+      audioContext: (function() {
+        if (phina.isNode()) return null;
+
+        var g = phina.global;
+        var context = null;
+
+        if (g.AudioContext) {
+            context = new AudioContext();
+        }
+        else if (g.webkitAudioContext) {
+            context = new webkitAudioContext();
+        }
+        else if (g.mozAudioContext) {
+            context = new mozAudioContext();
+        }
+
+        return context;
+      })(),
+    },
+
+  });
+
+});
+
+
+
+phina.namespace(function() {
+
+  /**
+   * @class phina.asset.SpriteSheet
+   * 
+   */
+  phina.define('phina.asset.SpriteSheet', {
+    superClass: "phina.asset.Asset",
+
+    /**
+     * @constructor
+     */
+    init: function() {
+      this.superInit();
+    },
+
+    setup: function(params) {
+      this._setupFrame(params.frame);
+      this._setupAnim(params.animations);
+      return this;
+    },
+
+    _load: function(resolve) {
+
+      var self = this;
+
+      if (typeof this.src === 'string') {
+        var xml = new XMLHttpRequest();
+        xml.open('GET', this.src);
+        xml.onreadystatechange = function() {
+          if (xml.readyState === 4) {
+            if ([200, 201, 0].indexOf(xml.status) !== -1) {
+              var data = xml.responseText;
+              var json = JSON.parse(data);
+
+              self.setup(json);
+
+              resolve(self);
+            }
+          }
+        };
+
+        xml.send(null);
+      }
+      else {
+        this.setup(this.src);
+        resolve(self);
+      }
+
+    },
+
+    _setupFrame: function(frame) {
+      var frames = this.frames = [];
+      var unitWidth = frame.width;
+      var unitHeight = frame.height;
+
+      var count = frame.rows * frame.cols;
+      this.frame = count;
+
+      (count).times(function(i) {
+        var xIndex = i%frame.cols;
+        var yIndex = (i/frame.cols)|0;
+
+        frames.push({
+          x: xIndex*unitWidth,
+          y: yIndex*unitHeight,
+          width: unitWidth,
+          height: unitHeight,
+        });
+      });
+    },
+
+    _setupAnim: function(animations) {
+      this.animations = {};
+
+      // デフォルトアニメーション
+      this.animations["default"] = {
+          frames: [].range(0, this.frame),
+          next: "default",
+          frequency: 1,
+      };
+
+      animations.forIn(function(key, value) {
+        var anim = value;
+
+        if (anim instanceof Array) {
+          this.animations[key] = {
+            frames: [].range(anim[0], anim[1]),
+            next: anim[2],
+            frequency: anim[3] || 1,
+          };
+        }
+        else {
+          this.animations[key] = {
+            frames: anim.frames,
+            next: anim.next,
+            frequency: anim.frequency || 1
+          };
+        }
+
+      }, this);
+    },
+
+    /**
+     * フレームを取得
+     */
+    getFrame: function(index) {
+      return this.frames[index];
+    },
+
+    getAnimation: function(name) {
+      name = (name !== undefined) ? name : "default";
+      return this.animations[name];
     },
 
   });
@@ -2896,7 +3346,9 @@ phina.namespace(function() {
       if (obj._touchFlags[p.id]) {
         obj.flare('pointstay');
         if (p._moveFlag) {
-          obj.flare('pointmove');
+          obj.flare('pointmove', {
+            pointer: p,
+          });
         }
       }
 
@@ -3750,7 +4202,6 @@ phina.namespace(function() {
         if (task.type === 'tween') {
 
         }
-        console.log(task);
       });
       this.play();
 
@@ -3863,6 +4314,151 @@ phina.namespace(function() {
     return this._tweener;
   });
   
+});
+
+
+
+phina.namespace(function() {
+
+  phina.define('phina.accessory.Draggable', {
+    superClass: 'phina.accessory.Accessory',
+
+    /**
+     * @constructor
+     */
+    init: function(target) {
+      this.superInit(target);
+
+      this.initialPosition = phina.geom.Vector2(0, 0);
+      var self = this;
+
+      this.on('attached', function() {
+        this.target.setInteractive(true);
+
+        this.target.on('pointstart', function(e) {
+
+          self.initialPosition.x = this.x;
+          self.initialPosition.y = this.y;
+          self.flare('dragstart');
+        });
+        this.target.on('pointmove', function(e) {
+          this.x += e.pointer.dx;
+          this.y += e.pointer.dy;
+          self.flare('drag');
+        });
+
+        this.target.on('pointend', function(e) {
+          self.flare('dragend');
+        });
+      });
+    },
+
+    back: function() {
+      // TODO: 
+      this.target.x = this.initialPosition.x;
+      this.target.y = this.initialPosition.y;
+      // this.setInteractive(false);
+      // this.tweener.clear()
+      //     .move(this.initialX, this.initialY, 500, "easeOutElastic")
+      //     .call(function () {
+      //         this.setInteractive(true);
+      //         this.fire(tm.event.Event("backend"));
+      //     }.bind(this));
+    },
+
+    enable: function() {
+      this._enable = true;
+    },
+
+  });
+
+  phina.app.Element.prototype.getter('draggable', function() {
+    if (!this._draggable) {
+      this._draggable = phina.accessory.Draggable().attachTo(this);
+    }
+    return this._draggable;
+  });
+  
+});
+/*
+ * frameanimation.js
+ */
+
+
+phina.namespace(function() {
+
+  phina.define('phina.accessory.FrameAnimation', {
+    superClass: 'phina.accessory.Accessory',
+
+    /**
+     * @constructor
+     */
+    init: function(ss) {
+      this.superInit();
+
+      this.ss = phina.asset.AssetManager.get('spritesheet', ss);
+      this.paused = true;
+    },
+
+    update: function() {
+      if (this.paused) return ;
+      if (!this.currentAnimation) return ;
+
+      ++this.frame;
+      if (this.frame%this.currentAnimation.frequency === 0) {
+        ++this.currentFrameIndex;
+        this._updateFrame();
+      }
+    },
+
+    gotoAndPlay: function(name) {
+      this.frame = 0;
+      this.currentFrameIndex = 0;
+      this.currentAnimation = this.ss.getAnimation(name);
+      this._updateFrame();
+
+      this.paused = false;
+
+      return this;
+    },
+
+    gotoAndStop: function(name) {
+      this.frame = 0;
+      this.currentFrameIndex = 0;
+      this.currentAnimation = this.ss.getAnimation(name);
+      this._updateFrame();
+
+      this.paused = true;
+
+      return this;
+    },
+
+    _updateFrame: function() {
+      var anim = this.currentAnimation;
+      if (anim) {
+        if (this.currentFrameIndex >= anim.frames.length) {
+          if (anim.next) {
+            this.gotoAndPlay(anim.next);
+            return ;
+          }
+          else {
+            // TODO: 
+          }
+        }
+      }
+
+      var index = anim.frames[this.currentFrameIndex];
+      var frame = this.ss.getFrame(index);
+      var target = this.target;
+
+      target.srcRect.x = frame.x;
+      target.srcRect.y = frame.y;
+      target.srcRect.width = frame.width;
+      target.srcRect.height = frame.height;
+      target.width = frame.width;
+      target.height = frame.height;
+    },
+  });
 });
 
 
@@ -4351,6 +4947,45 @@ phina.namespace(function() {
       c.stroke();
       return this;
     },
+
+    /**
+     * 円弧のパスを設定
+     */
+    arc: function(x, y, radius, startAngle, endAngle, anticlockwise) {
+      this.context.arc(x, y, radius, startAngle, endAngle, anticlockwise);
+      return this;
+    },
+    
+    /**
+     * 塗りつぶし円弧を描画
+     */
+    fillArc: function(x, y, radius, startAngle, endAngle, anticlockwise) {
+      return this.beginPath().arc(x, y, radius, startAngle, endAngle, anticlockwise).fill();
+    },
+    
+    /**
+     * ストローク円弧を描画
+     */
+    strokeArc: function(x, y, radius, startAngle, endAngle, anticlockwise) {
+      return this.beginPath().arc(x, y, radius, startAngle, endAngle, anticlockwise).stroke();
+    },
+
+
+    pie: function(x, y, radius, startAngle, endAngle, anticlockwise) {
+      var context = this.context;
+      context.beginPath();
+      context.moveTo(0, 0);
+      context.arc(x, y, radius, startAngle-Math.PI/2, endAngle-Math.PI/2, anticlockwise);
+      context.closePath();
+      return this;
+    },
+    fillPie: function(x, y, radius, startAngle, endAngle, anticlockwise) {
+      return this.beginPath().pie(x, y, radius, startAngle, endAngle, anticlockwise).fill();
+    },
+    strokePie: function(x, y, radius, startAngle, endAngle, anticlockwise) {
+      return this.beginPath().pie(x, y, radius, startAngle, endAngle, anticlockwise).stroke();
+    },
+
     
     /**
      * ポリゴンパス
@@ -4708,14 +5343,28 @@ phina.namespace(function() {
       this.image = phina.asset.AssetManager.get('image', image);
       this.width = this.image.domElement.width;
       this.height = this.image.domElement.height;
+
+      this.srcRect = {
+        x: 0,
+        y: 0,
+        width: this.width,
+        height: this.height,
+      };
     },
 
     draw: function(canvas) {
       var image = this.image.domElement;
-      // canvas.context.drawImage(this.image, 0, 0, this.image.width, this.image.height);
+
+
+      // canvas.context.drawImage(image,
+      //   0, 0, image.width, image.height,
+      //   -this.width*this.origin.x, -this.height*this.origin.y, this.width, this.height
+      //   );
+
+      var srcRect = this.srcRect;
       canvas.context.drawImage(image,
-        0, 0, image.width, image.height,
-        -this.width*this.origin.x, -this.height*this.origin.y, this.width, this.height
+        srcRect.x, srcRect.y, srcRect.width, srcRect.height,
+        -this.width*this.originX, -this.height*this.originY, this.width, this.height
         );
     },
   });
@@ -4854,6 +5503,8 @@ phina.namespace(function() {
       this.canvas.setSize(params.width, params.height);
       this.renderer = phina.display.CanvasRenderer(this.canvas);
       this.backgroundColor = 'white';
+      this.gridX = phina.util.Grid(params.width, 16);
+      this.gridY = phina.util.Grid(params.height, 16);
 
       // TODO: 一旦むりやり対応
       this.interactive = true;
@@ -4890,7 +5541,14 @@ phina.namespace(function() {
     superClass: 'phina.display.CanvasElement',
 
     init: function(params) {
+      this.superInit();
       this.canvas = phina.graphics.Canvas();
+      params = (params || {}).$safe({
+        width: 640,
+        height: 960,
+      });
+      this.canvas.width  = params.width;
+      this.canvas.height = params.height;
     },
 
     draw: function(canvas) {
@@ -4940,6 +5598,7 @@ phina.namespace(function() {
     },
   });
 });
+
 
 
 
@@ -5038,7 +5697,7 @@ phina.namespace(function() {
 
       this.mouse = phina.input.Mouse(this.domElement);
       this.touch = phina.input.Touch(this.domElement);
-      this.touchList = phina.input.TouchList(this.domElement, 4);
+      this.touchList = phina.input.TouchList(this.domElement, 5);
 
       // ポインタをセット(PC では Mouse, Mobile では Touch)
       this.pointer = this.touch;
@@ -5145,8 +5804,8 @@ phina.namespace(function() {
      */
     init: function(params) {
       this.superInit({
-        color: 'white',
-        stroke: false,
+      	color: 'white',
+      	stroke: false,
       });
 
       var tweener = phina.accessory.Tweener().attachTo(this);
@@ -5417,3 +6076,344 @@ phina.namespace(function() {
   });
 
 });
+
+phina.namespace(function() {
+
+  /**
+   * @class phina.game.GameApp
+   * 
+   */
+  phina.define('phina.game.GameApp', {
+    superClass: 'phina.display.CanvasApp',
+
+    init: function(params) {
+      this.superInit(params);
+
+      var scene = ManagerScene({
+        startLabel: params.startLabel,
+
+        scenes: [
+          {
+            className: "SplashScene",
+            arguments: {
+              width: params.width,
+              height: params.height,
+            },
+            label: "splash",
+            nextLabel: "title",
+          },
+          
+          {
+            className: 'TitleScene',
+            label: 'title',
+            nextLabel: 'main',
+          },
+          {
+            className: 'MainScene',
+            label: 'main',
+            nextLabel: 'result',
+          },
+          {
+            className: 'ResultScene',
+            label: 'result',
+            nextLabel: 'title',
+          },
+
+          {
+            className: "PauseScene",
+            label: "pause",
+          },
+
+        ]
+      });
+
+      this.replaceScene(scene);
+    },
+  });
+
+});
+phina.namespace(function() {
+
+  /**
+   * @class phina.game.PieTimer
+   * 
+   */
+  phina.define('phina.game.PieTimer', {
+    superClass: 'phina.display.Shape',
+
+    init: function(time, style) {
+      style = (style || {}).$safe({
+        color: '#aaa',
+        radius: 64,
+
+        stroke: true,
+        strokeWidth: 4,
+        strokeColor: '#aaa',
+
+        showPercentage: false, // TODO
+
+        backgroundColor: 'transparent',
+      });
+
+      this.superInit(style);
+
+      this.label = phina.display.Label('hoge').addChildTo(this);
+
+      this.time = 0;
+      this.limit = time || 1000*10;
+
+      this.starting = true;
+    },
+
+    update: function(app) {
+      if (!this.starting) return ;
+
+      this.time += app.ticker.deltaTime;
+    },
+
+    start: function() {
+      this.starting = true;
+    },
+
+    stop: function() {
+      this.starting = false;
+    },
+
+    _render: function() {
+      var style = this.style;
+      this.canvas.width = style.radius*2 + style.padding*2;
+      this.canvas.height= style.radius*2 + style.padding*2;
+      this.canvas.clearColor(style.backgroundColor);
+
+      this.canvas.transformCenter();
+
+      var rate = this.time / this.limit;
+      var end = (Math.PI*2)*rate;
+
+      if (style.stroke) {
+        this.canvas.context.lineWidth = style.strokeWidth;
+        this.canvas.strokeStyle = style.strokeColor;
+        // this.canvas.strokePie(0, 0, style.radius, 0, end);
+        this.canvas.strokeArc(0, 0, style.radius, 0-Math.PI/2, end-Math.PI/2);
+      }
+
+      this.canvas.context.fillStyle = style.color;
+      this.canvas.fillPie(0, 0, style.radius, 0, end);
+
+      if (this.label) {
+        var left = Math.max(0, this.limit-this.time);
+        this.label.text = Math.ceil(left/1000)+'';
+      }
+    },
+
+    _accessor: {
+      time: {
+        get: function() {
+          return this._time;
+        },
+        set: function(time) {
+          this._time = time;
+          this._render();
+        },
+      }
+    }
+  });
+
+});
+
+
+phina.namespace(function() {
+
+  if (!phina.global.Box2D) {
+    return ;
+  }
+
+  // http://box2dweb-doc.readthedocs.org/ja/latest/00_ready.html#id2
+  phina.box2d = {
+    b2: {
+      Vec2          : Box2D.Common.Math.b2Vec2,
+      AABB          : Box2D.Collision.b2AABB,
+      BodyDef       : Box2D.Dynamics.b2BodyDef,
+      Body          : Box2D.Dynamics.b2Body,
+      FixtureDef    : Box2D.Dynamics.b2FixtureDef,
+      Fixture       : Box2D.Dynamics.b2Fixture,
+      World         : Box2D.Dynamics.b2World,
+      MassData      : Box2D.Collision.Shapes.b2MassData,
+      PolygonShape  : Box2D.Collision.Shapes.b2PolygonShape,
+      CircleShape   : Box2D.Collision.Shapes.b2CircleShape,
+      DebugDraw     : Box2D.Dynamics.b2DebugDraw,
+      MouseJointDef : Box2D.Dynamics.Joints.b2MouseJointDef
+    },
+  };
+
+  var b2 = phina.box2d.b2;
+
+  /**
+   * @class
+   */
+  phina.define('phina.box2d.Box2dLayer', {
+    superClass: 'phina.display.Layer',
+
+
+    init: function(params) {
+      this.superInit(params);
+
+      params = (params || {}).$safe({
+        worldScale: 50, // or 50
+      });
+
+      // 重力と物理世界の設定
+      var gravity = new b2.Vec2(0, 9.8);
+      var world = new b2.World(gravity, true);
+      
+      this.world = world;
+      this.world._scale = params.worldScale;
+
+      this._setupDebugDraw();
+    },
+
+    _setupDebugDraw: function() {
+      // デバッグ用スプライト
+      var debugDraw = new b2.DebugDraw();
+      debugDraw.SetSprite(this.canvas.context);
+      debugDraw.SetDrawScale(this.world._scale);
+      debugDraw.SetLineThickness(1.0);
+      debugDraw.SetAlpha(1);
+      debugDraw.SetFillAlpha(0.4);
+      debugDraw.SetFlags(b2.DebugDraw.e_shapeBit);
+      this.world.SetDebugDraw(debugDraw);
+    },
+
+    createBody: function(params) {
+      params.world = this.world;
+      var body = phina.box2d.Box2dBody(params);
+      return body;
+    },
+
+    update: function(app) {
+      // var timeStep = app.ticker.frameTime/1000;
+      var timeStep = app.ticker.deltaTime/1000;
+      var velocityIterations = 10;
+      var positionIterations = 10;
+      // 物理空間の更新
+      this.world.Step(timeStep,velocityIterations,positionIterations);
+    },
+
+    draw: function(canvas) {
+      // debug画面の更新
+      this.world.ClearForces();
+      this.world.DrawDebugData();
+      var domElement = this.canvas.domElement;
+      canvas.context.drawImage(domElement, 0, 0, domElement.width, domElement.height);
+    },
+  });
+});
+
+
+
+
+phina.namespace(function() {
+  
+  if (!phina.global.Box2D) {
+    return ;
+  }
+
+  var b2 = phina.box2d.b2;
+
+  /**
+   * @class
+   */
+  phina.define('phina.box2d.Box2dBody', {
+    superClass: 'phina.accessory.Accessory',
+
+
+    init: function(params) {
+      this.superInit();
+
+      this.world = params.world;
+      this.type = params.type;
+      this.shape = params.shape;
+
+      this._init();
+
+      this.on('attached', function() {
+        var target = this.target;
+
+        var p = new b2.Vec2(target.x/this.world._scale, target.y/this.world._scale);
+        this.body.SetPosition(p);
+        this.body.SetAngle(target.rotation * Math.PI/180);
+
+        this._bindFixture(this.target);
+      });
+    },
+
+    update: function(app) {
+      var target = this.target;
+
+      target.x = this.body.GetPosition().x * this.world._scale;
+      target.y = this.body.GetPosition().y * this.world._scale;
+      target.rotation = this.body.GetAngle() * 180/Math.PI;
+    },
+
+    _init: function() {
+      this._setupBody();
+      return this;
+    },
+
+    _setupBody: function() {
+      var self = this;
+      var world = this.world;
+      var scale = world._scale;
+      var bodyDef = new b2.BodyDef();
+      bodyDef.type = (function() {
+        return {
+          'dynamic': b2.Body.b2_dynamicBody, 
+          'kinematic': b2.Body.b2_kinematicBody, 
+          'static': b2.Body.b2_staticBody, 
+        }[self.type || 'dynamic'];
+      })();
+      bodyDef.position.Set(0, 0);
+      var body = world.CreateBody(bodyDef);
+      this.body = body;
+
+      return this;
+    },
+
+    _bindFixture: function() {
+      var self = this;
+      var target = this.target;
+      var fixture = this.body.GetFixtureList();
+      if (fixture) {
+        this.body.DestroyFixture(fixture);
+      }
+
+      // 
+      var world = this.world;
+      var scale = world._scale;
+      // shape を取得
+      var shape = (function() {
+        var shape = null;
+        if (self.shape === 'circle') {
+          shape = new b2.CircleShape(target.radius / scale);
+        }
+        else if (self.shape === 'box'){
+          shape = new b2.PolygonShape();
+          shape.SetAsBox(target.width / scale / 2, target.height / scale / 2 );
+        }
+        else {
+          shape = new b2.CircleShape(32 / scale);
+        }
+        return shape;
+      })();
+
+      var fixture = new b2.FixtureDef();
+      fixture.shape = shape;
+      // TODO: このへんは引数で指定できるようにする
+      fixture.density = 1;
+      fixture.friction = 0.3;
+      fixture.restitution = 0.5;
+      this.body.CreateFixture(fixture);
+    },
+  });
+});
+
