@@ -1494,6 +1494,70 @@ phina.namespace(function() {
 
 });
 
+
+phina.namespace(function() {
+
+  /**
+   * @class phina.geom.Rect
+   * ベクトルクラス
+   */
+  phina.define('phina.geom.Rect', {
+
+    /** x */
+    x: 0,
+    /** y */
+    y: 0,
+    /** 幅 */
+    width: 32,
+    /** 高さ */
+    height: 32,
+
+    init: function(x, y, width, height) {
+      this.set(x, y, width, height);
+    },
+
+    set: function(x, y, width, height) {
+      this.x = x;
+      this.y = y;
+      this.width = width;
+      this.height = height;
+
+      return this;
+    },
+
+    clone: function() {
+      return phina.geom.Rect(this.x, this.y, this.width, this.height);
+    },
+
+    toCircle: function() {
+      return phina.geom.Circle()
+    },
+
+    _accessor: {
+      
+      /**
+       * @property  width
+       * width
+       */
+      width: {
+          "get": function()   { return this._width; },
+          "set": function(v)  { this._width = v; }
+      },
+      
+      /**
+       * @property  height
+       * height
+       */
+      height: {
+          "get": function()   { return this._height; },
+          "set": function(v)  { this._height = v; }
+      },
+    }
+
+  });
+
+});
+
 phina.namespace(function() {
 
   /**
@@ -2534,9 +2598,16 @@ phina.namespace(function() {
       this.domElement.src = this.src;
 
       var self = this;
-      this.domElement.onload = function() {
+      this.domElement.onload = function(e) {
         self.loaded = true;
         resolve(self);
+      };
+      this.domElement.onerror = function(e) {
+        console.error("[phina.js] not found `{0}`!".format(this.src));
+
+        var key = self.src.split('/').last.replace('.png', '').split('?').first.split('#').first;
+        e.target.src = "http://dummyimage.com/128x128/444444/eeeeee&text=" + key;
+        e.target.onerror = null;
       };
     },
 
@@ -3461,6 +3532,24 @@ phina.namespace(function() {
       return scene;
     },
 
+    /**
+     * シーンのupdateを実行するようにする
+     */
+    start: function() {
+      this.awake = true;
+
+      return this;
+    },
+    
+    /**
+     * シーンのupdateを実行しないようにする
+     */
+    stop: function() {
+      this.awake = false;
+
+      return this;
+    },
+
     enableStats: function() {
       if (phina.global.Stats) {
         this.stats = new Stats();
@@ -3605,6 +3694,75 @@ phina.namespace(function() {
       
       return this;
     },
+
+    fromJSON: function(json) {
+
+      var createChildren = function(name, data) {
+        // 
+        var args = data.arguments;
+        args = (args instanceof Array) ? args : [args];
+        // 
+        var _class = phina.using(data.className);
+        // 
+        var element = _class.apply(null, args);
+        
+        element.name = name;
+        this[name] = element;
+
+        element.fromJSON(data);
+        element.addChildTo(this)
+      }.bind(this);
+
+      json.forIn(function(key, value) {
+        if (key === 'children') {
+          value.forIn(function(name, data) {
+            createChildren(name, data);
+          });
+        }
+        else {
+          if (key !== 'type') {
+            this[key] = value;
+          }
+        }
+      }, this);
+
+      return this;
+    },
+
+    toJSON: function() {
+      var json = {};
+
+      // this.forIn(function(key, value) {
+      //   if (key[0] === '_') return ;
+      //   json[key] = value;
+      // });
+
+      var keys = [
+        'x', 'y',
+        'rotation',
+        'scaleX', 'scaleY',
+        'originX', 'originY',
+        'className',
+        'name',
+      ];
+
+      keys.each(function(key) {
+        json[key] = this[key];
+      }, this);
+
+      var children = this.children.map(function(child) {
+        return child.toJSON();
+      });
+
+      if (children.length) {
+        json.children = {};
+        children.each(function(child) {
+          json.children[child.name] = child;
+        });
+      }
+
+      return json;
+    },
   });
   
 });
@@ -3662,6 +3820,18 @@ phina.namespace(function() {
 
       return ( left < p.x && p.x < right ) && ( top  < p.y && p.y < bottom );
     },
+
+    /**
+     * 要素と衝突しているかを判定
+     * @param {Object} elm
+     */
+    hitTestElement: function(elm) {
+      var rect0 = this;
+      var rect1 = elm;
+      return (rect0.left < rect1.right) && (rect0.right > rect1.left) &&
+             (rect0.top < rect1.bottom) && (rect0.bottom > rect1.top);
+    },
+
 
     globalToLocal: function(p) {
       var matrix = this._worldMatrix.clone();
@@ -5401,6 +5571,7 @@ phina.namespace(function() {
 
         align: 'center',
         baseline: 'middle',
+        lineHeight: 1.2,
 
         backgroundColor: 'transparent',
       });
@@ -5424,7 +5595,7 @@ phina.namespace(function() {
     calcHeight: function() {
       var height = this.style.fontSize * this._lines.length;
       if (this.style.baseline !== 'middle') height*=2;
-      return height;
+      return height*this.style.lineHeight;
     },
 
     _render: function() {
@@ -5452,19 +5623,21 @@ phina.namespace(function() {
 
       context.lineJoin = "round";
 
-      var offset = -Math.floor(lines.length/2)*fontSize;
+      var lineSize = fontSize*style.lineHeight;
+      var offset = -Math.floor(lines.length/2)*lineSize;
+      offset += ((lines.length+1)%2) * (lineSize/2);
 
       if (this.style.stroke) {
         context.shadowBlur = 0;
         lines.forEach(function(line, i) {
-          context.strokeText(line, 0, i*fontSize+offset);
+          context.strokeText(line, 0, i*lineSize+offset);
         }, this);
       }
 
       context.shadowBlur = this.style.shadowBlur;
       context.shadowColor = this.style.shadowColor;
       lines.forEach(function(line, i) {
-        context.fillText(line, 0, i*fontSize+offset);
+        context.fillText(line, 0, i*lineSize+offset);
       }, this);
     },
 
@@ -5499,6 +5672,9 @@ phina.namespace(function() {
     init: function(params) {
       this.superInit();
 
+      params = (params || {}).$safe(phina.display.CanvasScene.default);
+
+
       this.canvas = phina.graphics.Canvas();
       this.canvas.setSize(params.width, params.height);
       this.renderer = phina.display.CanvasRenderer(this.canvas);
@@ -5525,6 +5701,13 @@ phina.namespace(function() {
     _render: function() {
       this.renderer.render(this);
     },
+
+    _static: {
+      default: {
+        width: 640,
+        height: 960,
+      },
+    }
 
   });
 
@@ -5872,6 +6055,8 @@ phina.namespace(function() {
         text: 'Hello',
         color: 'white',
         backgroundColor: 'hsl(200, 80%, 60%)',
+        cornerRadius: 8,
+        fontSize: 32,
       });
 
       this.setInteractive(true, 'rect');
@@ -5882,13 +6067,14 @@ phina.namespace(function() {
       this.bg = phina.display.RectangleShape({
         width: this.width,
         height: this.height,
-        cornerRadius: 8,
+        cornerRadius: params.cornerRadius,
         color: params.backgroundColor,
         stroke: false,
       }).addChildTo(this);
       this.label = phina.display.Label(params.text, {
         color: params.color,
         stroke: false,
+        fontSize: params.fontSize,
       }).addChildTo(this);
     },
   });
@@ -6071,6 +6257,203 @@ phina.namespace(function() {
       else {
         this.gotoNext(nextArguments);
       }
+    },
+
+  });
+
+});
+
+/*
+ * TitleScene
+ */
+
+
+phina.namespace(function() {
+
+  /**
+   * @class phina.game.TitleScene
+   * 
+   */
+  phina.define('phina.game.TitleScene', {
+    superClass: 'phina.display.CanvasScene',
+    /**
+     * @constructor
+     */
+    init: function(params) {
+      this.superInit(params);
+
+      params = (params || {}).$safe(phina.game.TitleScene.default);
+
+      this.backgroundColor = params.backgroundColor;
+
+      this.fromJSON({
+        children: {
+          titleLabel: {
+            className: 'phina.display.Label',
+            arguments: [params.title, {
+              color: params.fontColor,
+              stroke: false,
+              fontSize: 64,
+            }],
+            x: this.gridX.center(),
+            y: this.gridY.span(4),
+          }
+        }
+      });
+
+      if (params.exitType === 'touch') {
+        this.fromJSON({
+          children: {
+            touchLabel: {
+              className: 'phina.display.Label',
+              arguments: ["TOUCH START", {
+                color: 'white',
+                color: params.fontColor,
+                stroke: false,
+                fontSize: 32,
+              }],
+              x: this.gridX.center(),
+              y: this.gridY.span(12),
+            },
+          },
+        });
+
+        this.on('pointstart', function() {
+          this.exit();
+        });
+      }
+    },
+
+    _static: {
+      default: {
+        title: 'phina.js games',
+        message: '',
+        width: 640,
+        height: 960,
+
+        fontColor: 'white',
+        backgroundColor: 'hsl(200, 80%, 64%)',
+        backgroundImage: '',
+
+        exitType: 'touch',
+      },
+    },
+
+  });
+
+});
+
+/*
+ * ResultScene
+ */
+
+
+phina.namespace(function() {
+
+  /**
+   * @class phina.game.ResultScene
+   * 
+   */
+  phina.define('phina.game.ResultScene', {
+    superClass: 'phina.display.CanvasScene',
+    /**
+     * @constructor
+     */
+    init: function(params) {
+      this.superInit(params);
+
+      params = (params || {}).$safe(phina.game.ResultScene.default);
+
+      this.backgroundColor = params.backgroundColor;
+
+      this.fromJSON({
+        children: {
+          scoreText: {
+            className: 'phina.display.Label',
+            arguments: ['score', {
+              color: params.fontColor,
+              stroke: false,
+              fontSize: 48,
+            }],
+            x: this.gridX.span(8),
+            y: this.gridY.span(4),
+          },
+          scoreLabel: {
+            className: 'phina.display.Label',
+            arguments: [params.score+'', {
+              color: params.fontColor,
+              stroke: false,
+              fontSize: 80,
+            }],
+            x: this.gridX.span(8),
+            y: this.gridY.span(6),
+          },
+
+          messageLabel: {
+            className: 'phina.display.Label',
+            arguments: [params.message, {
+              color: params.fontColor,
+              stroke: false,
+              fontSize: 32,
+            }],
+            x: this.gridX.span(8),
+            y: this.gridY.span(8),
+          },
+
+          shareButton: {
+            className: 'phina.ui.Button',
+            arguments: [{
+              text: '★',
+              width: 128,
+              height: 128,
+              fontSize: 50,
+              cornerRadius: 64,
+            }],
+            x: this.gridX.span(6),
+            y: this.gridY.span(11),
+          },
+          playButton: {
+            className: 'phina.ui.Button',
+            arguments: [{
+              text: '▶',
+              width: 128,
+              height: 128,
+              fontSize: 50,
+              cornerRadius: 64,
+            }],
+            x: this.gridX.span(10),
+            y: this.gridY.span(11),
+
+            interactive: true,
+            onpointend: function() {
+              this.exit();
+            }.bind(this),
+          },
+        }
+      });
+
+      if (params.exitType === 'touch') {
+        this.on('pointstart', function() {
+          this.exit();
+        });
+      }
+    },
+
+    _static: {
+      default: {
+        score: 16,
+
+        message: 'this is phina.js project.\nHello, world!',
+        hashtags: 'phina game javascript',
+        url: 'http://phinajs.com',
+
+        width: 640,
+        height: 960,
+
+        fontColor: 'white',
+        backgroundColor: 'hsl(200, 80%, 64%)',
+        backgroundImage: '',
+      },
     },
 
   });
