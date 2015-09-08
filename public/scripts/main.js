@@ -10,11 +10,14 @@ var MAX_PER_LINE    = 5;                            // ピースの横に並ぶ�
 var MAX_NUM         = MAX_PER_LINE*MAX_PER_LINE;    // ピース全体の数
 
 var BACKGROUND_COLOR = '#fec';
+var COLOR_BASE_HSL = 'hsl({0}, 80%, 60%)';
 
 window.onload = function() {
   var flow = AssetLoader().load({
     script: {
+      titlescene: 'scripts/scenes/title.js',
       mainscene: 'scripts/scenes/main.js',
+      resultscene: 'scripts/scenes/result.js',
       piece: 'scripts/elements/piece.js',
     },
   });

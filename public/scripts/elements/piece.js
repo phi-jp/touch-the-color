@@ -1,4 +1,26 @@
 
+
+phina.define('Piece', {
+  superClass: 'RectangleShape',
+
+  init: function(index, color) {
+    this.superInit({
+      width: 100,
+      height: 100,
+      cornerRadius: 8,
+      color: color,
+      stroke: false,
+    });
+
+    this.width = 100;
+    this.height = 100;
+
+    this.index = index;
+    this.setInteractive(true);
+  },
+});
+
+
 phina.define('MainPiece', {
   superClass: 'RectangleShape',
   init: function(color) {

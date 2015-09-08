@@ -1,89 +1,12 @@
-/**
- * TitleScene
- */
-phina.define('TitleScene', {
-  superClass: 'phina.display.CanvasScene',
-  init: function() {
-    this.superInit({
-      width: SCREEN_WIDTH,
-      height: SCREEN_HEIGHT,
-    });
 
-    this.backgroundColor = BACKGROUND_COLOR;
-
-    var self = this;
-
-    // 
-    this.piece = MainPiece('hsl(0, 80%, 60%)').addChildTo(this);
-
-    this.piece.appear();
-    this.piece.onappeared = function() {
-      var label = Label('Touch the color', {
-        color: 'white',
-        stroke: false,
-        fontSize: 64,
-      }).addChildTo(self);
-      label.position.set(SCREEN_WIDTH/2, SCREEN_HEIGHT/2);
-      label.alpha = 0;
-      // 
-      Tweener().attachTo(label)
-        .to({alpha:1}, 1000, 'swing')
-        .to({y:250}, 1000, 'swing')
-        .call(function() {
-          this.remove();
-        })
-
-      self.on('pointend', function() {
-        this.exit();
-      });
-    };
-
-    this.onpointstart = function(e) {
-      var p = e.pointer;
-      var wave = Wave().addChildTo(this);
-      wave.x = p.x;
-      wave.y = p.y;
-    };
-  },
-});
-
-/**
- * ResultScene
- */
-phina.define('ResultScene', {
-  superClass: 'CanvasScene',
-
-  init: function(params) {
-    this.superInit({
-      width: SCREEN_WIDTH,
-      height: SCREEN_HEIGHT,
-    });
-
-    this.backgroundColor = BACKGROUND_COLOR;
-
-    // 
-    this.piece = MainPiece(params.color || 'hsl(0, 80%, 60%)').addChildTo(this);
-    this.piece.fill();
-
-    this.label = Label('result: ' + params.score).addChildTo(this);
-    this.label.position.set(320, 480)
-
-    this.onpointstart = function() {
-      this.label.visible = false;
-      this.piece.disappear().on('disappeared', function() {
-        this.exit();
-      }.bind(this));
-    };
-  },
-
-});
 
 /**
  * MainScene
  */
 phina.define('MainScene', {
   superClass: 'phina.display.CanvasScene',
-  init: function() {
+
+  init: function(params) {
     this.superInit({
       width: SCREEN_WIDTH,
       height: SCREEN_HEIGHT,
@@ -113,7 +36,8 @@ phina.define('MainScene', {
       // グリッド上でのインデックス
       var xIndex = i%MAX_PER_LINE;
       var yIndex = Math.floor(i/MAX_PER_LINE);
-      var color = 'hsl({0}, 80%, 60%)'.format(360/MAX_NUM*(index-1));
+      var colorAngle = params.colorAngle + (360/MAX_NUM*(index-1));
+      var color = 'hsl({0}, 80%, 60%)'.format(colorAngle);
       var p = Piece(index, color).addChildTo(self.group);
 
       p.x = gridX.span(xIndex+1);
@@ -165,25 +89,5 @@ phina.define('MainScene', {
         this.setIndex(this.currentIndex+1);
       }
     }
-  },
-});
-
-phina.define('Piece', {
-  superClass: 'RectangleShape',
-
-  init: function(index, color) {
-    this.superInit({
-      width: 100,
-      height: 100,
-      cornerRadius: 8,
-      color: color,
-      stroke: false,
-    });
-
-    this.width = 100;
-    this.height = 100;
-
-    this.index = index;
-    this.setInteractive(true);
   },
 });
