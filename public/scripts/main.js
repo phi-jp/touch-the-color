@@ -28,38 +28,12 @@ window.onload = function() {
 };
 
 var init = function() {
-  var app = CanvasApp({
-    query:'#world',
+  var app = GameApp({
+    query: '#world',
+    startLabel: location.search.substr(1).toObject().scene || 'title',
   });
 
   app.enableStats();
-
-  var scene = ManagerScene({
-    startLabel: location.search.substr(1).toObject().scene || 'title',
-    // startLabel: 'result',
-    scenes: [
-      {
-        className: 'TitleScene',
-        label: 'title',
-        nextLabel: 'main',
-      },
-      {
-        className: 'MainScene',
-        label: 'main',
-        nextLabel: 'result',
-      },
-      {
-        className: 'ResultScene',
-        label: 'result',
-        arguments: {
-          color: 'blue',
-          score: 1234,
-        },
-        nextLabel: 'title',
-      },
-    ]
-  });
-  app.replaceScene(scene);
 
   app.run();
 };

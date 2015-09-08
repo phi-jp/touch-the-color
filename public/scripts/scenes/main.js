@@ -37,7 +37,7 @@ phina.define('MainScene', {
       var xIndex = i%MAX_PER_LINE;
       var yIndex = Math.floor(i/MAX_PER_LINE);
       var colorAngle = params.colorAngle + (360/MAX_NUM*(index-1));
-      var color = 'hsl({0}, 80%, 60%)'.format(colorAngle);
+      var color = COLOR_BASE_HSL.format(colorAngle);
       var p = Piece(index, color).addChildTo(self.group);
 
       p.x = gridX.span(xIndex+1);
