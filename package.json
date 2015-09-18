@@ -1,18 +1,21 @@
 {
   "name": "touch-the-color",
-  "version": "0.0.1",
+  "version": "1.0.0",
+  "description": "touch-the-color",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
   "repository": {
-    "type": "git"
+    "type": "git",
+    "url": "https://github.com/phi-jp/touch-the-color.git"
   },
   "author": "phi",
   "license": "MIT",
-  "dependencies": {
-    "debug": "^2.2.0",
-    "less-middleware": "1.0.x",
-    "express": "^4.13.1",
-    "morgan": "^1.6.1",
-    "jade": "^1.9.2"
+  "bugs": {
+    "url": "https://github.com/phi-jp/touch-the-color/issues"
   },
+  "homepage": "https://github.com/phi-jp/touch-the-color",
   "devDependencies": {
     "gulp": "^3.9.0",
     "gulp-util": "^3.0.3",
@@ -22,8 +25,5 @@
     "gulp-helper": "^1.0.3",
     "gulp-riot": "^0.2.16",
     "ip": "^0.3.3"
-  },
-  "scripts": {
-    "start": "node src/index.js"
   }
 }

@@ -15,10 +15,10 @@ var COLOR_BASE_HSL = 'hsl({0}, 80%, 60%)';
 window.onload = function() {
   var flow = AssetLoader().load({
     script: {
-      titlescene: 'scripts/scenes/title.js',
-      mainscene: 'scripts/scenes/main.js',
-      resultscene: 'scripts/scenes/result.js',
-      piece: 'scripts/elements/piece.js',
+      titlescene: 'assets/scripts/scenes/title.js',
+      mainscene: 'assets/scripts/scenes/main.js',
+      resultscene: 'assets/scripts/scenes/result.js',
+      piece: 'assets/scripts/elements/piece.js',
     },
   });
 
